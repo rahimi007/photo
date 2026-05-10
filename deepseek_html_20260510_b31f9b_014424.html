@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Gallery</title>
+
+    <!-- CryptoJS CDN for AES encryption/decryption -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js">
+    </script>
+
+    <style>
+        :root {
+            --bg: #f5f5f7;
+            --card-bg: #ffffff;
+            --text: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --accent: #0071e3;
+            --accent-hover: #0077ed;
+            --border: #e0e0e5;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.14);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --modal-bg: rgba(0, 0, 0, 0.75);
+            --tag-bg: #f0f0f5;
+            --tag-text: #1d1d1f;
+            --copy-bg: #e8f4fd;
+            --badge: #34c759;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ============ HEADER ============ */
+        .header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.85);
+        }
+        .header-inner {
+            max-width: 1300px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .logo {
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: var(--text);
+            white-space: nowrap;
+        }
+        .logo span {
+            color: var(--accent);
+        }
+
+        /* ============ FILTER BAR ============ */
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filter-btn {
+            padding: 9px 18px;
+            border-radius: 25px;
+            border: 1.5px solid var(--border);
+            background: var(--card-bg);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text);
+            transition: var(--transition);
+            white-space: nowrap;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: var(--font);
+            letter-spacing: 0.1px;
+        }
+        .filter-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: #f5f9ff;
+        }
+        .filter-btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+            box-shadow: 0 2px 8px rgba(0, 113, 227, 0.35);
+        }
+        .filter-btn .count {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            margin-left: 4px;
+            font-weight: 600;
+        }
+        .filter-btn.active .count {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .filter-btn:not(.active) .count {
+            background: var(--tag-bg);
+            color: var(--text-secondary);
+        }
+
+        /* ============ MAIN CONTENT ============ */
+        .main-container {
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 24px 20px 60px;
+        }
+        .results-info {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            letter-spacing: 0.2px;
+        }
+        .results-info strong {
+            color: var(--text);
+        }
+
+        /* ============ PRODUCT GRID ============ */
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+            gap: 22px;
+            justify-content: center;
+        }
+        @media (max-width: 600px) {
+            .product-grid {
+                grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+                gap: 12px;
+            }
+            .header-inner {
+                justify-content: center;
+                text-align: center;
+            }
+            .filter-bar {
+                justify-content: center;
+            }
+            .filter-btn {
+                padding: 7px 14px;
+                font-size: 0.8rem;
+            }
+        }
+        @media (max-width: 380px) {
+            .product-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            .filter-btn {
+                padding: 6px 11px;
+                font-size: 0.75rem;
+                border-radius: 20px;
+            }
+        }
+
+        /* ============ PRODUCT CARD ============ */
+        .product-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            border: 1px solid transparent;
+        }
+        .product-card:hover {
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-3px);
+            border-color: var(--border);
+        }
+        .product-card:active {
+            transform: scale(0.985);
+            transition: 0.1s;
+        }
+        .card-image-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            overflow: hidden;
+            background: #e8e8ed;
+            flex-shrink: 0;
+        }
+        .card-image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: opacity 0.3s;
+        }
+        .card-image-wrapper .img-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #e8e8ed 0%, #dcdce3 100%);
+            transition: opacity 0.35s;
+        }
+        .card-image-wrapper.loaded .img-placeholder {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .card-image-wrapper img {
+            position: relative;
+            z-index: 1;
+        }
+        .card-badges {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            z-index: 2;
+        }
+        .card-badge {
+            font-size: 0.7rem;
+            padding: 4px 10px;
+            border-radius: 14px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+        }
+        .card-body {
+            padding: 14px 16px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-grow: 1;
+        }
+        .card-name {
+            font-weight: 600;
+            font-size: 1rem;
+            letter-spacing: -0.2px;
+            color: var(--text);
+            line-height: 1.3;
+        }
+        .card-code-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .card-code {
+            font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            background: #f5f5f8;
+            padding: 5px 10px;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+            user-select: all;
+            -webkit-user-select: all;
+            word-break: break-all;
+            transition: background 0.2s;
+        }
+        .copy-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--accent);
+            transition: var(--transition);
+            white-space: nowrap;
+            font-family: var(--font);
+            letter-spacing: 0.2px;
+        }
+        .copy-btn:hover {
+            background: var(--copy-bg);
+            border-color: var(--accent);
+        }
+        .copy-btn.copied {
+            background: var(--badge);
+            color: #fff;
+            border-color: var(--badge);
+        }
+        .card-categories {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .card-cat-tag {
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 12px;
+            background: var(--tag-bg);
+            color: var(--tag-text);
+            font-weight: 500;
+            letter-spacing: 0.2px;
+        }
+
+        /* ============ MODAL / LIGHTBOX ============ */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--modal-bg);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+            position: relative;
+            animation: modalIn 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+        }
+        @keyframes modalIn {
+            from {
+                transform: translateY(40px) scale(0.94);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            line-height: 1;
+        }
+        .modal-close:hover {
+            background: rgba(0, 0, 0, 0.75);
+            transform: scale(1.08);
+        }
+        .modal-main-image {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+            border-radius: var(--radius) var(--radius) 0 0;
+            display: block;
+            background: #e8e8ed;
+        }
+        .modal-body {
+            padding: 20px 24px 24px;
+        }
+        .modal-product-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            margin-bottom: 4px;
+        }
+        .modal-product-code {
+            font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+            display: inline-block;
+            background: #f5f5f8;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+        .modal-thumbnails-label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            color: var(--text-secondary);
+            letter-spacing: 0.2px;
+        }
+        .modal-thumbnails {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .modal-thumb {
+            width: 80px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: var(--transition);
+            background: #e8e8ed;
+            flex-shrink: 0;
+        }
+        .modal-thumb:hover {
+            border-color: var(--accent);
+            transform: scale(1.05);
+        }
+        .modal-thumb.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.2);
+        }
+        @media (max-width: 600px) {
+            .modal-content {
+                max-height: 95vh;
+                border-radius: var(--radius-sm);
+            }
+            .modal-thumb {
+                width: 60px;
+                height: 45px;
+            }
+            .modal-body {
+                padding: 14px 16px 18px;
+            }
+            .modal-close {
+                top: 8px;
+                right: 10px;
+                width: 32px;
+                height: 32px;
+                font-size: 1rem;
+            }
+        }
+
+        /* ============ LOADING SHIMMER ============ */
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+        .shimmer {
+            background: linear-gradient(90deg, #e8e8ed 25%, #f0f0f5 50%, #e8e8ed 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        /* ============ SCROLLBAR ============ */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c8c8d0;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8b0;
+        }
+
+        /* ============ TOOLTIP ============ */
+        .tooltip {
+            position: fixed;
+            background: #1d1d1f;
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.2s;
+            letter-spacing: 0.2px;
+            font-family: var(--font);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        .tooltip.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==================== HEADER ==================== -->
+    <header class="header">
+        <div class="header-inner">
+            <div class="logo">Gallery<span>.</span></div>
+            <div class="filter-bar" id="filterBar">
+                <button class="filter-btn active" data-filter="all">
+                    All<span class="count" id="countAll">0</span>
+                </button>
+                <button class="filter-btn" data-filter="Electronics">
+                    Electronics<span class="count" id="countElec">0</span>
+                </button>
+                <button class="filter-btn" data-filter="Clothing">
+                    Clothing<span class="count" id="countClth">0</span>
+                </button>
+                <button class="filter-btn" data-filter="Home">
+                    Home & Living<span class="count" id="countHome">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <div class="main-container">
+        <p class="results-info" id="resultsInfo">Showing <strong>0</strong> products</p>
+        <div class="product-grid" id="productGrid">
+            <!-- Products rendered by JS -->
+        </div>
+    </div>
+
+    <!-- ==================== MODAL OVERLAY ==================== -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content" id="modalContent">
+            <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+            <img class="modal-main-image" id="modalMainImg" src="" alt="Product image" />
+            <div class="modal-body">
+                <div class="modal-product-name" id="modalProdName"></div>
+                <span class="modal-product-code" id="modalProdCode"></span>
+                <div class="modal-thumbnails-label">Additional Images</div>
+                <div class="modal-thumbnails" id="modalThumbnails">
+                    <!-- Thumbnails rendered by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TOOLTIP ==================== -->
+    <div class="tooltip" id="tooltip"></div>
+
+    <!-- ==================== SCRIPTS ==================== -->
+    <script>
+        (function() {
+            // =============================================
+            // AES CONFIGURATION
+            // The secret key used for AES encryption/decryption.
+            // In production, this key (and the encrypted image data)
+            // would be embedded directly in the code.
+            // =============================================
+            const AES_KEY = "MySecureGalleryKey_2024!@#%";
+
+            // =============================================
+            // CATEGORY DEFINITIONS (3 filter types)
+            // =============================================
+            const CATEGORIES = {
+                ELECTRONICS: 'Electronics',
+                CLOTHING: 'Clothing',
+                HOME: 'Home',
+            };
+
+            // =============================================
+            // PRODUCT DATA (without images initially)
+            // Images will be generated, encrypted, then decrypted.
+            // In a real scenario, encryptedImages would be pre-computed
+            // and hardcoded here alongside the AES_KEY.
+            // =============================================
+            const products = [{
+                id: 1,
+                name: 'Smart Watch Pro',
+                code: 'ELEC-001-A7',
+                categories: [CATEGORIES.ELECTRONICS],
+                color: '#1a1a2e',
+                accentColor: '#e94560',
+                icon: '⌚',
+            }, {
+                id: 2,
+                name: 'Wireless Earbuds X',
+                code: 'ELEC-002-B3',
+                categories: [CATEGORIES.ELECTRONICS],
+                color: '#0f3460',
+                accentColor: '#16c79a',
+                icon: '🎧',
+            }, {
+                id: 3,
+                name: 'Leather Jacket Vintage',
+                code: 'CLTH-001-J9',
+                categories: [CATEGORIES.CLOTHING],
+                color: '#3d2c2e',
+                accentColor: '#c9a96e',
+                icon: '🧥',
+            }, {
+                id: 4,
+                name: 'Cotton T-Shirt Classic',
+                code: 'CLTH-002-K4',
+                categories: [CATEGORIES.CLOTHING],
+                color: '#f5f0eb',
+                accentColor: '#2c3e50',
+                icon: '👕',
+            }, {
+                id: 5,
+                name: 'Table Lamp Nordic',
+                code: 'HOME-001-L2',
+                categories: [CATEGORIES.HOME],
+                color: '#f9f3e4',
+                accentColor: '#e8b86d',
+                icon: '💡',
+            }, {
+                id: 6,
+                name: 'Ceramic Vase Artisan',
+                code: 'HOME-002-M7',
+                categories: [CATEGORIES.HOME],
+                color: '#fdf6f0',
+                accentColor: '#a67c52',
+                icon: '🏺',
+            }, {
+                id: 7,
+                name: 'Smart Speaker Hub',
+                code: 'ELEC-003-N1',
+                categories: [CATEGORIES.ELECTRONICS, CATEGORIES.HOME],
+                color: '#1b1b2f',
+                accentColor: '#00d2ff',
+                icon: '🔊',
+            }, {
+                id: 8,
+                name: 'Wool Blanket Cozy',
+                code: 'CLTH-003-P5',
+                categories: [CATEGORIES.CLOTHING, CATEGORIES.HOME],
+                color: '#8b6f5e',
+                accentColor: '#f4d03f',
+                icon: '🧣',
+            }, {
+                id: 9,
+                name: 'Phone Case Armor',
+                code: 'ELEC-004-Q8',
+                categories: [CATEGORIES.ELECTRONICS, CATEGORIES.CLOTHING],
+                color: '#2d2d2d',
+                accentColor: '#ff6b6b',
+                icon: '📱',
+            }, {
+                id: 10,
+                name: 'Wall Clock Minimal',
+                code: 'HOME-003-R6',
+                categories: [CATEGORIES.HOME],
+                color: '#ffffff',
+                accentColor: '#333333',
+                icon: '🕐',
+            }, {
+                id: 11,
+                name: 'Silk Scarf Elegance',
+                code: 'CLTH-004-S2',
+                categories: [CATEGORIES.CLOTHING],
+                color: '#d4a5a5',
+                accentColor: '#6b3a5b',
+                icon: '🧣',
+            }, {
+                id: 12,
+                name: 'LED Strip Aurora',
+                code: 'ELEC-005-T4',
+                categories: [CATEGORIES.ELECTRONICS, CATEGORIES.HOME],
+                color: '#1a0030',
+                accentColor: '#ff00ff',
+                icon: '💫',
+            }, ];
+
+            // =============================================
+            // IMAGE GENERATION VIA CANVAS
+            // Creates product images as data URLs.
+            // These simulate the "original" images before encryption.
+            // =============================================
+            function generateProductImage(product, width = 400, height = 300, variant = 'main') {
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+
+                // Background gradient
+                const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+                const baseColor = product.color;
+                const lighterColor = lightenColor(baseColor, 30);
+                bgGrad.addColorStop(0, baseColor);
+                bgGrad.addColorStop(1, lighterColor);
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, width, height);
+
+                // Subtle pattern overlay
+                if (variant === 'main') {
+                    // Diagonal stripes
+                    ctx.save();
+                    ctx.globalAlpha = 0.06;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    for (let i = -height; i < width + height; i += 20) {
+                        ctx.beginPath();
+                        ctx.moveTo(i, 0);
+                        ctx.lineTo(i + height, height);
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                } else if (variant === 'detail') {
+                    // Dot grid
+                    ctx.save();
+                    ctx.globalAlpha = 0.08;
+                    ctx.fillStyle = '#ffffff';
+                    for (let x = 15; x < width; x += 25) {
+                        for (let y = 15; y < height; y += 25) {
+                            ctx.beginPath();
+                            ctx.arc(x, y, 3, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                    ctx.restore();
+                } else if (variant === 'alt') {
+                    // Wavy lines
+                    ctx.save();
+                    ctx.globalAlpha = 0.05;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 3;
+                    for (let y = 0; y < height; y += 40) {
+                        ctx.beginPath();
+                        for (let x = 0; x < width; x += 5) {
+                            const yOff = y + Math.sin(x * 0.03) * 12;
+                            if (x === 0) ctx.moveTo(x, yOff);
+                            else ctx.lineTo(x, yOff);
+                        }
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                } else {
+                    // variant 'extra': soft circles
+                    ctx.save();
+                    ctx.globalAlpha = 0.07;
+                    ctx.fillStyle = '#ffffff';
+                    for (let i = 0; i < 12; i++) {
+                        const cx = (i * 73 + 40) % width;
+                        const cy = (i * 47 + 60) % height;
+                        const r = 25 + (i % 5) * 15;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                }
+
+                // Large centered icon/emoji
+                ctx.save();
+                ctx.globalAlpha = 0.7;
+                ctx.font = `${Math.floor(height * 0.35)}px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(product.icon, width / 2, height / 2 - height * 0.06);
+                ctx.restore();
+
+                // Product initials below icon
+                ctx.save();
+                ctx.globalAlpha = 0.55;
+                ctx.fillStyle = '#ffffff';
+                ctx.font = `bold ${Math.floor(height * 0.1)}px 'Segoe UI', system-ui, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const initials = product.name.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase();
+                ctx.fillText(initials, width / 2, height / 2 + height * 0.2);
+                ctx.restore();
+
+                // Bottom accent bar
+                const barHeight = height * 0.06;
+                const barGrad = ctx.createLinearGradient(0, height - barHeight, width, height - barHeight);
+                barGrad.addColorStop(0, product.accentColor);
+                barGrad.addColorStop(1, lightenColor(product.accentColor, 20));
+                ctx.fillStyle = barGrad;
+                ctx.fillRect(0, height - barHeight, width, barHeight);
+
+                // Variant badge for additional images
+                if (variant !== 'main') {
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    const badgeW = width * 0.3;
+                    const badgeH = height * 0.08;
+                    const badgeX = width - badgeW - 10;
+                    const badgeY = 10;
+                    ctx.beginPath();
+                    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 8);
+                    ctx.fill();
+                    ctx.fillStyle = '#fff';
+                    ctx.font = `${Math.floor(badgeH * 0.65)}px 'Segoe UI', system-ui, sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const label = variant === 'detail' ? 'Detail View' : variant === 'alt' ? 'Alt View' : 'Extra';
+                    ctx.fillText(label, badgeX + badgeW / 2, badgeY + badgeH / 2);
+                    ctx.restore();
+                }
+
+                // Return as JPEG data URL (more compact than PNG for photos)
+                return canvas.toDataURL('image/jpeg', 0.75);
+            }
+
+            function lightenColor(hex, percent) {
+                const num = parseInt(hex.replace('#', ''), 16);
+                const amt = Math.round(2.55 * percent);
+                const R = Math.min(255, (num >> 16) + amt);
+                const G = Math.min(255, ((num >> 8) & 0x00FF00) + amt);
+                const B = Math.min(255, (num & 0x0000FF) + amt);
+                return `rgb(${R},${G},${B})`;
+            }
+
+            // =============================================
+            // AES ENCRYPTION & DECRYPTION HELPERS
+            // Uses CryptoJS. The key is converted via PBKDF2
+            // with a random salt (auto-handled by CryptoJS).
+            // =============================================
+            function encryptData(dataUrl, key) {
+                const encrypted = CryptoJS.AES.encrypt(dataUrl, key);
+                return encrypted.toString(); // Base64-encoded ciphertext (includes salt + IV)
+            }
+
+            function decryptData(encryptedBase64, key) {
+                try {
+                    const decrypted = CryptoJS.AES.decrypt(encryptedBase64, key);
+                    const result = decrypted.toString(CryptoJS.enc.Utf8);
+                    if (!result || result.length < 20) {
+                        throw new Error('Decryption produced empty or invalid result');
+                    }
+                    return result;
+                } catch (e) {
+                    console.error('Decryption failed:', e.message);
+                    return null;
+                }
+            }
+
+            // =============================================
+            // IN-MEMORY CACHE (decrypted images NOT saved to disk)
+            // =============================================
+            const decryptedCache = new Map(); // key: `${productId}-${variant}`, value: dataURL
+
+            function getCachedDecrypted(productId, variant = 'main') {
+                const cacheKey = `${productId}-${variant}`;
+                return decryptedCache.get(cacheKey) || null;
+            }
+
+            function setCachedDecrypted(productId, variant, dataUrl) {
+                const cacheKey = `${productId}-${variant}`;
+                decryptedCache.set(cacheKey, dataUrl);
+            }
+
+            // =============================================
+            // BUILD PRODUCT DATA WITH ENCRYPTED IMAGES
+            // In production, encryptedImages would be pre-computed.
+            // Here we generate, encrypt, then store encrypted data.
+            // =============================================
+            function buildProductWithEncryptedImages(product) {
+                // Generate main image
+                const mainDataUrl = generateProductImage(product, 400, 300, 'main');
+                // Generate additional images (NOT loaded initially)
+                const additionalVariants = ['detail', 'alt', 'extra'];
+                const additionalDataUrls = additionalVariants.map(v =>
+                    generateProductImage(product, 400, 300, v)
+                );
+
+                // Encrypt all images with AES
+                const encryptedMain = encryptData(mainDataUrl, AES_KEY);
+                const encryptedAdditional = additionalDataUrls.map(url => encryptData(url, AES_KEY));
+
+                return {
+                    ...product,
+                    encryptedMainImage: encryptedMain,
+                    encryptedAdditionalImages: encryptedAdditional,
+                    _mainDataUrl: mainDataUrl, // Keep reference for immediate use after encryption
+                    _additionalDataUrls: additionalDataUrls,
+                };
+            }
+
+            // =============================================
+            // DECRYPT MAIN IMAGE (called on page load)
+            // =============================================
+            function decryptMainImage(product) {
+                const cached = getCachedDecrypted(product.id, 'main');
+                if (cached) return cached;
+
+                const decrypted = decryptData(product.encryptedMainImage, AES_KEY);
+                if (decrypted) {
+                    setCachedDecrypted(product.id, 'main', decrypted);
+                    return decrypted;
+                }
+                // Fallback: use the pre-encryption data URL if available
+                if (product._mainDataUrl) {
+                    setCachedDecrypted(product.id, 'main', product._mainDataUrl);
+                    return product._mainDataUrl;
+                }
+                return null;
+            }
+
+            // =============================================
+            // DECRYPT ADDITIONAL IMAGES (called on modal open)
+            // =============================================
+            function decryptAdditionalImages(product) {
+                const variants = ['detail', 'alt', 'extra'];
+                const results = [];
+                for (let i = 0; i < product.encryptedAdditionalImages.length; i++) {
+                    const variant = variants[i] || `add-${i}`;
+                    const cached = getCachedDecrypted(product.id, variant);
+                    if (cached) {
+                        results.push({ variant, dataUrl: cached });
+                        continue;
+                    }
+                    const decrypted = decryptData(product.encryptedAdditionalImages[i], AES_KEY);
+                    if (decrypted) {
+                        setCachedDecrypted(product.id, variant, decrypted);
+                        results.push({ variant, dataUrl: decrypted });
+                    } else if (product._additionalDataUrls && product._additionalDataUrls[i]) {
+                        setCachedDecrypted(product.id, variant, product._additionalDataUrls[i]);
+                        results.push({ variant, dataUrl: product._additionalDataUrls[i] });
+                    }
+                }
+                return results;
+            }
+
+            // =============================================
+            // BUILD ALL PRODUCTS (generate + encrypt)
+            // =============================================
+            console.time('Build & Encrypt Products');
+            const builtProducts = products.map(p => buildProductWithEncryptedImages(p));
+            console.timeEnd('Build & Encrypt Products');
+            console.log(
+                `🔐 All images encrypted with AES key: "${AES_KEY}"\n` +
+                `📦 ${builtProducts.length} products processed.\n` +
+                `💡 Encrypted data is stored in memory. In production, these encrypted\n` +
+                `   base64 strings would be hardcoded in the source code alongside the key.`
+            );
+
+            // =============================================
+            // DOM REFERENCES
+            // =============================================
+            const productGrid = document.getElementById('productGrid');
+            const filterBar = document.getElementById('filterBar');
+            const resultsInfo = document.getElementById('resultsInfo');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const modalMainImg = document.getElementById('modalMainImg');
+            const modalProdName = document.getElementById('modalProdName');
+            const modalProdCode = document.getElementById('modalProdCode');
+            const modalThumbnails = document.getElementById('modalThumbnails');
+            const modalClose = document.getElementById('modalClose');
+            const tooltip = document.getElementById('tooltip');
+            const countAll = document.getElementById('countAll');
+            const countElec = document.getElementById('countElec');
+            const countClth = document.getElementById('countClth');
+            const countHome = document.getElementById('countHome');
+
+            let currentFilter = 'all';
+            let currentModalProduct = null;
+            let currentModalImageIndex = 0;
+            let modalAdditionalImages = [];
+
+            // =============================================
+            // UPDATE CATEGORY COUNTS
+            // =============================================
+            function updateCategoryCounts() {
+                const allCount = builtProducts.length;
+                const elecCount = builtProducts.filter(p => p.categories.includes(CATEGORIES.ELECTRONICS))
+                .length;
+                const clthCount = builtProducts.filter(p => p.categories.includes(CATEGORIES.CLOTHING)).length;
+                const homeCount = builtProducts.filter(p => p.categories.includes(CATEGORIES.HOME)).length;
+
+                countAll.textContent = allCount;
+                countElec.textContent = elecCount;
+                countClth.textContent = clthCount;
+                countHome.textContent = homeCount;
+            }
+
+            // =============================================
+            // FILTER PRODUCTS
+            // =============================================
+            function getFilteredProducts() {
+                if (currentFilter === 'all') return builtProducts;
+                return builtProducts.filter(p => p.categories.includes(currentFilter));
+            }
+
+            // =============================================
+            // RENDER PRODUCT CARDS
+            // =============================================
+            function renderGallery() {
+                const filtered = getFilteredProducts();
+                productGrid.innerHTML = '';
+                resultsInfo.innerHTML = `Showing <strong>${filtered.length}</strong> product${filtered.length !== 1 ? 's' : ''}`;
+
+                if (filtered.length === 0) {
+                    productGrid.innerHTML = `
+                    <div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-secondary);">
+                        <p style="font-size:1.2rem;margin-bottom:8px;">No products found</p>
+                        <p style="font-size:0.9rem;">Try selecting a different category filter.</p>
+                    </div>`;
+                    return;
+                }
+
+                filtered.forEach(product => {
+                    const card = document.createElement('div');
+                    card.className = 'product-card';
+                    card.setAttribute('data-product-id', product.id);
+                    card.innerHTML = `
+                    <div class="card-image-wrapper shimmer" id="imgWrapper-${product.id}">
+                        <div class="img-placeholder" id="imgPlaceholder-${product.id}">${product.icon}</div>
+                        <img
+                            id="mainImg-${product.id}"
+                            src=""
+                            alt="${product.name}"
+                            loading="eager"
+                            style="opacity:0;"
+                        />
+                        <div class="card-badges">
+                            ${product.categories.map(cat => `<span class="card-badge">${cat}</span>`).join('')}
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-name">${product.name}</div>
+                        <div class="card-code-row">
+                            <span class="card-code" id="codeEl-${product.id}">${product.code}</span>
+                            <button class="copy-btn" data-code="${product.code}" data-product-id="${product.id}" aria-label="Copy code">
+                                📋 Copy
+                            </button>
+                        </div>
+                        <div class="card-categories">
+                            ${product.categories.map(cat => `<span class="card-cat-tag">${cat}</span>`).join('')}
+                        </div>
+                    </div>
+                    `;
+
+                    // Click on card (not on copy button) opens modal
+                    card.addEventListener('click', function(e) {
+                        // Don't open modal if copy button was clicked
+                        if (e.target.closest('.copy-btn')) return;
+                        openModal(product);
+                    });
+
+                    productGrid.appendChild(card);
+                });
+
+                // Decrypt and display main images
+                filtered.forEach(product => {
+                    decryptAndDisplayMainImage(product);
+                });
+
+                // Attach copy button listeners
+                attachCopyListeners();
+            }
+
+            // =============================================
+            // DECRYPT & DISPLAY MAIN IMAGE
+            // =============================================
+            function decryptAndDisplayMainImage(product) {
+                const imgEl = document.getElementById(`mainImg-${product.id}`);
+                const wrapper = document.getElementById(`imgWrapper-${product.id}`);
+                const placeholder = document.getElementById(`imgPlaceholder-${product.id}`);
+
+                if (!imgEl || !wrapper) return;
+
+                // Use requestAnimationFrame to avoid blocking UI
+                requestAnimationFrame(() => {
+                    try {
+                        const decryptedDataUrl = decryptMainImage(product);
+                        if (decryptedDataUrl) {
+                            imgEl.src = decryptedDataUrl;
+                            imgEl.onload = () => {
+                                imgEl.style.opacity = '1';
+                                wrapper.classList.add('loaded');
+                                wrapper.classList.remove('shimmer');
+                                if (placeholder) placeholder.style.opacity = '0';
+                            };
+                            imgEl.onerror = () => {
+                                // Keep placeholder visible on error
+                                wrapper.classList.remove('shimmer');
+                                console.warn(`Failed to load main image for product: ${product.name}`);
+                            };
+                        } else {
+                            wrapper.classList.remove('shimmer');
+                            console.warn(`Could not decrypt main image for: ${product.name}`);
+                        }
+                    } catch (err) {
+                        wrapper.classList.remove('shimmer');
+                        console.error(`Error decrypting image for ${product.name}:`, err);
+                    }
+                });
+            }
+
+            // =============================================
+            // COPY BUTTON LOGIC
+            // =============================================
+            function attachCopyListeners() {
+                document.querySelectorAll('.copy-btn').forEach(btn => {
+                    // Remove existing listener to avoid duplicates
+                    const newBtn = btn.cloneNode(true);
+                    btn.parentNode.replaceChild(newBtn, btn);
+
+                    newBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        const code = this.getAttribute('data-code');
+                        copyToClipboard(code, this);
+                    });
+                });
+            }
+
+            function copyToClipboard(text, buttonEl) {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        showCopyFeedback(buttonEl);
+                    }).catch(() => {
+                        fallbackCopy(text, buttonEl);
+                    });
+                } else {
+                    fallbackCopy(text, buttonEl);
+                }
+            }
+
+            function fallbackCopy(text, buttonEl) {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                textarea.style.pointerEvents = 'none';
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    showCopyFeedback(buttonEl);
+                } catch (e) {
+                    showTooltip(buttonEl, 'Failed to copy');
+                }
+                document.body.removeChild(textarea);
+            }
+
+            function showCopyFeedback(buttonEl) {
+                const originalHTML = buttonEl.innerHTML;
+                buttonEl.classList.add('copied');
+                buttonEl.innerHTML = '✅ Copied!';
+                setTimeout(() => {
+                    buttonEl.classList.remove('copied');
+                    buttonEl.innerHTML = originalHTML;
+                }, 1800);
+            }
+
+            function showTooltip(element, message) {
+                const rect = element.getBoundingClientRect();
+                tooltip.textContent = message;
+                tooltip.style.left = rect.left + rect.width / 2 - tooltip.offsetWidth / 2 + 'px';
+                tooltip.style.top = rect.top - 40 + 'px';
+                tooltip.classList.add('show');
+                setTimeout(() => {
+                    tooltip.classList.remove('show');
+                }, 1500);
+            }
+
+            // =============================================
+            // MODAL LOGIC
+            // =============================================
+            function openModal(product) {
+                currentModalProduct = product;
+                currentModalImageIndex = 0;
+                modalAdditionalImages = [];
+
+                // Set product info
+                modalProdName.textContent = product.name;
+                modalProdCode.textContent = product.code;
+
+                // Get main image from cache
+                const mainDataUrl = getCachedDecrypted(product.id, 'main') || product._mainDataUrl || '';
+                modalMainImg.src = mainDataUrl;
+
+                // Show loading state for thumbnails
+                modalThumbnails.innerHTML =
+                    '<span style="color:var(--text-secondary);font-size:0.85rem;">Decrypting additional images...</span>';
+
+                // Open modal
+                modalOverlay.classList.add('open');
+                document.body.style.overflow = 'hidden';
+
+                // Decrypt additional images on demand
+                requestAnimationFrame(() => {
+                    try {
+                        modalAdditionalImages = decryptAdditionalImages(product);
+                        renderModalThumbnails();
+                    } catch (err) {
+                        console.error('Error decrypting additional images:', err);
+                        modalThumbnails.innerHTML =
+                            '<span style="color:#c0392b;font-size:0.85rem;">Failed to load additional images.</span>';
+                    }
+                });
+            }
+
+            function closeModal() {
+                modalOverlay.classList.remove('open');
+                document.body.style.overflow = '';
+                currentModalProduct = null;
+                modalAdditionalImages = [];
+                currentModalImageIndex = 0;
+                modalMainImg.src = '';
+                modalThumbnails.innerHTML = '';
+            }
+
+            function renderModalThumbnails() {
+                modalThumbnails.innerHTML = '';
+                if (modalAdditionalImages.length === 0) {
+                    modalThumbnails.innerHTML =
+                        '<span style="color:var(--text-secondary);font-size:0.85rem;">No additional images available.</span>';
+                    return;
+                }
+                modalAdditionalImages.forEach((imgData, index) => {
+                    const thumb = document.createElement('img');
+                    thumb.className = 'modal-thumb';
+                    if (index === currentModalImageIndex) {
+                        thumb.classList.add('active');
+                    }
+                    thumb.src = imgData.dataUrl;
+                    thumb.alt = `${imgData.variant} view`;
+                    thumb.loading = 'lazy';
+                    thumb.addEventListener('click', () => {
+                        currentModalImageIndex = index;
+                        modalMainImg.src = imgData.dataUrl;
+                        // Update active state
+                        document.querySelectorAll('.modal-thumb').forEach(t => t.classList
+                            .remove('active'));
+                        thumb.classList.add('active');
+                    });
+                    modalThumbnails.appendChild(thumb);
+                });
+            }
+
+            // Modal close handlers
+            modalClose.addEventListener('click', closeModal);
+            modalOverlay.addEventListener('click', function(e) {
+                if (e.target === modalOverlay) {
+                    closeModal();
+                }
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && modalOverlay.classList.contains('open')) {
+                    closeModal();
+                }
+            });
+
+            // =============================================
+            // FILTER HANDLERS
+            // =============================================
+            filterBar.addEventListener('click', function(e) {
+                const btn = e.target.closest('.filter-btn');
+                if (!btn) return;
+
+                const filter = btn.getAttribute('data-filter');
+                if (filter === currentFilter) return;
+
+                // Update active button
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove(
+                    'active'));
+                btn.classList.add('active');
+
+                currentFilter = filter;
+                renderGallery();
+            });
+
+            // =============================================
+            // INITIALIZATION
+            // =============================================
+            function init() {
+                updateCategoryCounts();
+                renderGallery();
+                console.log(
+                    '✅ Gallery initialized.\n' +
+                    `🔑 AES Key: "${AES_KEY}"\n` +
+                    '🖼️  Main images decrypted & displayed.\n' +
+                    '🔒 Additional images remain encrypted until modal opens.\n' +
+                    '💾 Decrypted images cached in memory only (not saved to device).\n' +
+                    '📱 Mobile-friendly layout active.'
+                );
+            }
+
+            // Start the gallery
+            init();
+
+            // =============================================
+            // EXPORT FOR DEBUG (accessible via browser console)
+            // =============================================
+            window.__gallery = {
+                products: builtProducts,
+                aesKey: AES_KEY,
+                decryptData,
+                encryptData,
+                decryptedCache,
+                getFilteredProducts,
+                currentFilter,
+            };
+
+            console.log(
+                '🛠️  Debug API available at `window.__gallery`\n' +
+                '   - __gallery.products: all products with encrypted images\n' +
+                '   - __gallery.aesKey: the AES key\n' +
+                '   - __gallery.decryptedCache: in-memory cache of decrypted images\n' +
+                '   - __gallery.decryptData(encBase64, key): decrypt helper\n'
+            );
+        })();
+    </script>
+</body>
+</html>
